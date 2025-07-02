@@ -1,6 +1,5 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 
 export type ClonedVoice = {
   id: string;
@@ -16,16 +15,10 @@ export const useClonedVoices = () => {
   return useQuery({
     queryKey: ["cloned-voices"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("cloned_voices")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (error) {
-        throw error;
-      }
-
-      return data as ClonedVoice[];
+      // Mock implementation - returns empty array since cloned_voices table doesn't exist
+      // This should be replaced with actual Supabase integration once the table is created
+      console.log("Warning: cloned_voices table not found in Supabase schema. Returning empty array.");
+      return [] as ClonedVoice[];
     },
   });
 };
