@@ -4,12 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Upload, Mic, Play, Square, Download, Zap, AudioWaveform, ChevronLeft, ChevronRight } from "lucide-react";
+import { Upload, Mic, Play, Square, Download, Zap, AudioWaveform } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import VoiceCloner from "@/components/VoiceCloner";
 import AudioVisualizer from "@/components/AudioVisualizer";
 import TextToSpeech from "@/components/TextToSpeech";
-import CyberpunkGallery from "@/components/CyberpunkGallery";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState<'clone' | 'synthesize'>('clone');
@@ -17,20 +16,9 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-cyber-dark text-white">
-      {/* Hero Section with Background Images */}
+      {/* Hero Section */}
       <div className="relative overflow-hidden">
-        {/* Background Images */}
-        <div className="absolute inset-0">
-          <div className="absolute inset-0 bg-gradient-to-br from-cyber-red/20 via-transparent to-cyber-orange/20" />
-          <div 
-            className="absolute inset-0 bg-cover bg-center opacity-20"
-            style={{
-              backgroundImage: `url('https://i.postimg.cc/HrLnNXfB/a-27-year-old-man-leans-against-an-old-brick-wall-in-a-dark-alley-red-neon-light-casting-a-dramatic.png')`
-            }}
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-cyber-dark via-cyber-dark/80 to-transparent" />
-        </div>
-        
+        <div className="absolute inset-0 bg-gradient-to-br from-cyber-red/10 via-transparent to-cyber-orange/10" />
         <div className="relative container mx-auto px-4 py-20 text-center">
           <div className="space-y-6 max-w-4xl mx-auto">
             <h1 className="text-6xl md:text-8xl font-bold mb-6">
@@ -53,18 +41,14 @@ const Index = () => {
               <Button 
                 variant="outline" 
                 className="border-cyber-red text-cyber-red hover:bg-cyber-red hover:text-white text-lg px-8 py-4"
-                onClick={() => document.getElementById('gallery-section')?.scrollIntoView({ behavior: 'smooth' })}
               >
                 <AudioWaveform className="w-5 h-5 mr-2" />
-                View Gallery
+                View Demo
               </Button>
             </div>
           </div>
         </div>
       </div>
-
-      {/* Cyberpunk Gallery Section */}
-      <CyberpunkGallery />
 
       {/* Features Grid */}
       <div className="container mx-auto px-4 py-20">
