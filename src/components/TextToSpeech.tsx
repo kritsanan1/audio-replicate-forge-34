@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -7,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Play, Download, Loader2, Volume2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useClonedVoices } from "@/hooks/useClonedVoices";
+import { supabase } from "@/integrations/supabase/client";
 import AudioVisualizer from "./AudioVisualizer";
 
 const TextToSpeech = () => {
@@ -14,8 +14,46 @@ const TextToSpeech = () => {
   const [selectedVoice, setSelectedVoice] = useState<string>("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [predictionId, setPredictionId] = useState<string | null>(null);
+  const [progress, setProgress] = useState(0);
   const { toast } = useToast();
   const { data: clonedVoices = [], isLoading: voicesLoading } = useClonedVoices();
+
+  const checkSynthesisStatus = async (id: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('voice-clone', {
+        body: { action: 'status', predictionId: id }
+      });
+
+      if (error) throw error;
+
+      const prediction = data;
+      
+      if (prediction.status === 'processing') {
+        setProgress(prev => Math.min(prev + 10, 90));
+        setTimeout(() => checkSynthesisStatus(id), 2000);
+      } else if (prediction.status === 'succeeded') {
+        setProgress(100);
+        setAudioUrl(prediction.output);
+        setIsGenerating(false);
+        toast({
+          title: "Speech generated successfully!",
+          description: "Your text has been converted to speech using your cloned voice",
+        });
+      } else if (prediction.status === 'failed') {
+        setIsGenerating(false);
+        setProgress(0);
+        toast({
+          title: "Speech generation failed",
+          description: prediction.logs || "Please try again with different text",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Status check error:', error);
+      setTimeout(() => checkSynthesisStatus(id), 5000); // Retry after 5 seconds
+    }
+  };
 
   const generateSpeech = async () => {
     if (!text.trim()) {
@@ -36,28 +74,49 @@ const TextToSpeech = () => {
       return;
     }
 
-    setIsGenerating(true);
-    
-    try {
-      // This would connect to a text-to-speech service using the cloned voice
-      // For now, we'll simulate the process
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      
-      // Mock audio URL - in real implementation, this would come from the TTS service
-      setAudioUrl("https://www.soundjay.com/misc/sounds/bell-ringing-05.wav");
-      
+    if (text.length > 5000) {
       toast({
-        title: "Speech generated successfully!",
-        description: "Your text has been converted to speech using your cloned voice",
-      });
-    } catch (error) {
-      toast({
-        title: "Generation failed",
-        description: "Failed to generate speech. Please try again.",
+        title: "Text too long",
+        description: "Please limit your text to 5000 characters or less",
         variant: "destructive",
       });
-    } finally {
+      return;
+    }
+
+    setIsGenerating(true);
+    setProgress(10);
+    setAudioUrl(null);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('voice-clone', {
+        body: {
+          action: 'synthesize',
+          text: text,
+          voice_id: selectedVoice,
+          speed: 1.0,
+          volume: 1.0,
+          pitch: 0,
+          emotion: "neutral"
+        }
+      });
+
+      if (error) throw error;
+
+      const prediction = data;
+      setPredictionId(prediction.id);
+      setProgress(20);
+
+      // Start polling for status
+      setTimeout(() => checkSynthesisStatus(prediction.id), 2000);
+
+    } catch (error: any) {
       setIsGenerating(false);
+      setProgress(0);
+      toast({
+        title: "Generation failed",
+        description: error.message || "Please try again with different text",
+        variant: "destructive",
+      });
     }
   };
 
@@ -72,7 +131,7 @@ const TextToSpeech = () => {
     if (audioUrl) {
       const link = document.createElement('a');
       link.href = audioUrl;
-      link.download = 'generated-speech.wav';
+      link.download = 'generated-speech.mp3';
       link.click();
     }
   };
@@ -118,14 +177,34 @@ const TextToSpeech = () => {
             <Textarea
               value={text}
               onChange={(e) => setText(e.target.value)}
-              placeholder="Enter the text you want to convert to speech using your cloned voice..."
+              placeholder="Enter the text you want to convert to speech using your cloned voice... Use <#2.5#> for pauses (e.g., Hello <#1.0#> world)"
               className="min-h-32 bg-cyber-gray border-cyber-red/30 text-white placeholder:text-gray-400 resize-none"
-              maxLength={1000}
+              maxLength={5000}
             />
             <div className="text-right text-sm text-gray-400">
-              {text.length}/1000 characters
+              {text.length}/5000 characters
             </div>
           </div>
+
+          {/* Processing Progress */}
+          {isGenerating && (
+            <div className="space-y-4 p-4 bg-gradient-to-r from-cyber-orange/10 to-cyber-amber/10 border border-cyber-orange/30 rounded-lg">
+              <div className="flex items-center justify-between">
+                <span className="text-cyber-orange">Generating speech...</span>
+                <span className="text-sm text-gray-400">{Math.round(progress)}%</span>
+              </div>
+              <div className="w-full bg-cyber-gray rounded-full h-2">
+                <div 
+                  className="bg-gradient-to-r from-cyber-orange to-cyber-amber h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+              <div className="flex items-center space-x-2 text-sm text-gray-400">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Converting text to speech using your cloned voice...</span>
+              </div>
+            </div>
+          )}
 
           {/* Generate Button */}
           <Button
@@ -171,7 +250,7 @@ const TextToSpeech = () => {
                   className="border-cyber-amber text-cyber-amber hover:bg-cyber-amber hover:text-white flex-1"
                 >
                   <Download className="w-4 h-4 mr-2" />
-                  Download
+                  Download MP3
                 </Button>
               </div>
             </div>

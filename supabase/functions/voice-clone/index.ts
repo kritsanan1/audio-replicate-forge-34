@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -33,11 +32,52 @@ serve(async (req) => {
     }
 
     const body = await req.json()
-    const { action, audioData, fileName, predictionId } = body
+    const { action, audioData, fileName, predictionId, text, voice_id, speed, volume, pitch, emotion } = body
 
     const REPLICATE_API_TOKEN = Deno.env.get('REPLICATE_API_TOKEN')
     if (!REPLICATE_API_TOKEN) {
       throw new Error('REPLICATE_API_TOKEN is not configured')
+    }
+
+    // Text-to-speech synthesis
+    if (action === 'synthesize' && text && voice_id) {
+      // Validate text length (max 5000 characters)
+      if (text.length > 5000) {
+        return new Response(JSON.stringify({ error: 'Text exceeds maximum length of 5000 characters' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // Start Replicate prediction for text-to-speech
+      const response = await fetch('https://api.replicate.com/v1/predictions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Token ${REPLICATE_API_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          version: "minimax/speech-01", // Using a text-to-speech model
+          input: {
+            text: text,
+            voice_id: voice_id,
+            speed: speed || 1.0,
+            volume: volume || 1.0,
+            pitch: pitch || 0,
+            emotion: emotion || "neutral",
+            sample_rate: 44100,
+            bitrate: 128000,
+            channel: "mono",
+            english_normalization: true
+          }
+        })
+      })
+
+      const prediction = await response.json()
+
+      return new Response(JSON.stringify(prediction), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
     }
 
     // Check prediction status
